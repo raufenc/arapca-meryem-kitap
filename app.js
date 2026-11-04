@@ -45,6 +45,29 @@ const IKON = {
 const yildizHtml = (n, top = 3) => `<span class="yildizlar">${Array.from({ length: top }, (_, i) => `<span class="${i < n ? "dolu" : ""}">${IKON.yildiz}</span>`).join("")}</span>`;
 const resimYolu = ad => ad ? `img/${ad}.jpg` : null;
 
+/* ---------- ses ---------- */
+const SES = K.ses || {};
+const sesVar = id => !!(id && SES[id]);
+const HER_SES = Object.keys(SES).length > 0;
+const satirSesi = id => "h" + id.replace(".", "_");
+const oynatici = new Audio();
+let kuyruk = [];
+const DINLE_IKON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+const dinleDugme = (id, etiket = "Dinle") => sesVar(id) ? `<button class="dinle" data-dinle="${id}" aria-label="${etiket}" title="${etiket}">${DINLE_IKON}</button>` : "";
+function sesDurdur() { kuyruk = []; oynatici.pause(); document.querySelectorAll(".caliyor").forEach(e => e.classList.remove("caliyor")); const sd = document.getElementById("sayfa-dinle"); if (sd) sd.setAttribute("aria-pressed", "false"); }
+function sesCal(id) {
+  document.querySelectorAll(".caliyor").forEach(e => e.classList.remove("caliyor"));
+  if (!sesVar(id)) return sonrakiSes();
+  document.querySelectorAll(`[data-ses-satir="${id}"],[data-dinle="${id}"]`).forEach(e => e.classList.add("caliyor"));
+  oynatici.src = `ses/${id}.mp3`; oynatici.playbackRate = durum.ayar.hiz || 1;
+  oynatici.play().catch(() => sesDurdur());
+}
+function sonrakiSes() {
+  const id = kuyruk.shift();
+  if (id) sesCal(id); else { document.querySelectorAll(".caliyor").forEach(e => e.classList.remove("caliyor")); const sd = document.getElementById("sayfa-dinle"); if (sd) sd.setAttribute("aria-pressed", "false"); }
+}
+oynatici.addEventListener("ended", () => setTimeout(sonrakiSes, kuyruk.length ? 450 : 0));
+
 /* kelime zinciri: metni noktalamasıyla koruyarak sar */
 function kelimeHtml(metin, toks) {
   let kalan = metin, out = "";
@@ -56,7 +79,7 @@ function kelimeHtml(metin, toks) {
   }
   return out + kacis(yaz(kalan));
 }
-const satirHtml = s => `<div class="satir">${s.konusan ? `<span class="konusan">${kacis(yaz(s.konusan))}:</span>` : ""}${kelimeHtml(s.metin, s.toks)}</div>`;
+const satirHtml = s => `<div class="satir" data-ses-satir="${satirSesi(s.id)}">${dinleDugme(satirSesi(s.id))}${s.konusan ? `<span class="konusan">${kacis(yaz(s.konusan))}:</span>` : ""}${kelimeHtml(s.metin, s.toks)}</div>`;
 const metinHtml = o => o.toks ? kelimeHtml(o.metin, o.toks) : kacis(yaz(o.metin));
 
 /* ---------- üst çubuk ---------- */
@@ -73,6 +96,7 @@ function ayarPanel() {
   const anah = (k, ad) => `<div class="ayar"><span>${ad}</span><button class="anahtar" role="switch" aria-checked="${a[k]}" data-ayar="${k}" aria-label="${ad}"></button></div>`;
   return `<div class="ayar-panel" id="ayar-panel" role="dialog" aria-label="Ayarlar">
     ${anah("hareke", "Harekeler")}${anah("turkce", "Türkçe anlam")}${anah("renk", "Yeni kelimeleri renklendir")}
+    ${HER_SES ? `<div class="ayar"><span>Okuma hızı</span><span class="boyut">${[0.75, 1].map(h => `<button class="dugme kucuk" data-hiz="${h}" aria-pressed="${(a.hiz || 1) == h}">${h === 1 ? "Normal" : "Yavaş"}</button>`).join("")}</span></div>` : ""}
     <div class="ayar"><span>Yazı boyutu</span><span class="boyut">${[0.85, 1, 1.2].map((o, i) => `<button class="dugme kucuk" data-olcek="${o}" aria-pressed="${a.olcek == o}">${["A−", "A", "A+"][i]}</button>`).join("")}</span></div>
   </div>`;
 }
@@ -122,7 +146,7 @@ const altBilgi = () => `<footer class="alt-bilgi">كِتاب مَرْيَم · M
 function kadroSayfa() {
   goster(`${ustCubuk("Kadro")}<main class="ic"><section class="bolum"><h2>Kadro</h2><p class="aciklama">Meryem bizi ailesiyle ve arkadaşlarıyla tanıştırıyor. Kelimelere dokun.</p>
     <div class="hikaye-kartlar">${K.kadro.map(k => `<div class="hk" style="cursor:default"><div class="gorsel" style="aspect-ratio:300/340;background:#F4EEE3"><img src="${resimYolu(k.resim)}" alt="" style="object-fit:contain"></div>
-      <div class="govde"><div class="satir" style="border:0">${metinHtml(k.cumle)}</div><div class="baslik-tr">${kacis(k.tr)}</div></div></div>`).join("")}</div>
+      <div class="govde"><div class="satir" style="border:0">${dinleDugme(`kadro_${K.kadro.indexOf(k) + 1}`)}${metinHtml(k.cumle)}</div><div class="baslik-tr">${kacis(k.tr)}</div></div></div>`).join("")}</div>
     <p style="margin-top:28px"><a class="dugme ana" href="#/h/1">Birinci hikâyeye başla ${IKON.ileri}</a></p></section></main>${altBilgi()}`);
 }
 
@@ -131,7 +155,7 @@ function tahminSayfa(n) {
   const secili = (durum.ilerleme[n] || {}).tahmin;
   goster(`${ustCubuk(h.baslik_tr)}<main class="ic"><div class="tahmin">
     <span class="etiket">HİKÂYE ${n} · OKUMADAN ÖNCE TAHMİN ET</span>
-    <h2>${metinHtml(t.soru)}</h2><p>Doğru ya da yanlış yok. Tahminini seç, cevabı hikâyede bul.</p>
+    <h2>${dinleDugme(`t${n}_soru`)}${metinHtml(t.soru)}</h2><p>Doğru ya da yanlış yok. Tahminini seç, cevabı hikâyede bul.</p>
     <div class="secim-izgara">${t.secenekler.map((s, i) => `<button class="secim ${secili === i ? "secildi" : ""}" data-tahmin="${i}">${s.resim ? `<img src="${resimYolu(s.resim)}" alt="">` : ""}<span class="ar">${kacis(yaz(s.metin.metin))}</span></button>`).join("")}</div>
     <p style="margin-top:24px"><a class="dugme ana" href="#/h/${n}/s/1">Hikâyeyi aç ${IKON.ileri}</a></p>
   </div></main>`);
@@ -150,7 +174,7 @@ function okuyucuSayfa(n, si) {
         ${s.noktalar.map(nk => `<button class="nokta" style="left:${nk.x}%;top:${nk.y}%" data-nokta="${kacis(nk.b)}" aria-label="Resimdeki nesne"></button>`).join("")}
         ${s.noktalar.length ? `<span class="nokta-ipucu">Noktalara dokun</span>` : ""}
       </div>
-      <div class="metin-kart">${s.satirlar.map(satirHtml).join("")}</div>
+      <div class="metin-kart">${s.satirlar.some(x => sesVar(satirSesi(x.id))) ? `<div class="dinle-serit"><button class="dugme kucuk" id="sayfa-dinle" aria-pressed="false" data-kuyruk="${s.satirlar.map(x => satirSesi(x.id)).join(",")}">${DINLE_IKON} Sayfayı dinle</button></div>` : ""}${s.satirlar.map(satirHtml).join("")}</div>
     </div>
   </main>
   <nav class="sayfa-gezgin"><div class="ic">
@@ -176,7 +200,7 @@ function etkinlikSayfa(n, ai) {
   if (adim === "sorular") {
     const q = h.sorular[etk.tur];
     govde = `<div class="yonerge"><span class="no">١</span>${metinHtml(K.yonerge.oku_sec)}</div><p class="yardim">Oku ve doğru cevabı seç. (Soru ${etk.tur + 1} / ${h.sorular.length})</p>
-      <div class="soru-ar">${metinHtml(q.soru)}</div>
+      <div class="soru-ar">${dinleDugme(`q${n}_${etk.tur + 1}`)}${metinHtml(q.soru)}</div>
       <div class="secenekler">${q.secenekler.map((o, i) => `<button class="secenek" data-cevap="${i}"><span class="h">${HARF[i]}</span><span>${metinHtml(o)}</span></button>`).join("")}</div>`;
   } else if (adim === "eslestir") {
     const e = E.eslestir[etk.tur];
@@ -189,7 +213,7 @@ function etkinlikSayfa(n, ai) {
     const diger = karistir(liste.filter(x => x.m !== m.m), "k" + n + etk.tur).slice(0, 3);
     const sec = karistir([m, ...diger], "s" + n + etk.tur);
     govde = `<div class="yonerge"><span class="no">٣</span>${metinHtml(K.yonerge.oku_sec)}</div><p class="yardim">Kelimeyi oku, resmini bul. (${etk.tur + 1} / ${liste.length})</p>
-      <div class="kelime-sor">${kacis(yaz(m.m))}</div>
+      <div class="kelime-sor">${dinleDugme((K.kelime_sesi || {})[m.m])}${kacis(yaz(m.m))}</div>
       <div class="resim-secenek">${sec.map(o => `<button data-cevap="${o.m === m.m ? "d" : "y"}" aria-label="resim"><img src="${resimYolu(o.resim)}" alt=""></button>`).join("")}</div>`;
   } else if (adim === "insa") {
     const c = E.insa[etk.tur];
@@ -285,7 +309,7 @@ function kartAc(arg) {
   const ekli = durum.kelimeler.includes(m);
   const sinif = c || (md.sinif === "yeni" ? "yeni" : md.sinif === "ad" ? "ad" : "bilinen");
   kartEl.innerHTML = `${r ? `<div class="kk-resim ${r.sahne ? "sahne-resmi" : ""}"><img src="${resimYolu(r.ad)}" alt="">${r.sahne ? `<span class="kaynak">hikâyeden</span>` : ""}</div>` : ""}
-    <div class="kk-govde"><div class="kk-ust"><div style="flex:1"><div class="kk-soz">${kacis(yaz(t || m))}</div>
+    <div class="kk-govde"><div class="kk-ust"><div style="flex:1"><div class="kk-soz">${dinleDugme((K.kelime_sesi || {})[m], "Kelimeyi dinle")}${kacis(yaz(t || m))}</div>
       ${durum.ayar.turkce ? `<div class="kk-anlam">${on ? kacis(K.onek[on]) + " + " : ""}${kacis(anlam)}</div>` : `<div class="kk-bilgi">Türkçe anlam ayarlardan kapalı.</div>`}
       <span class="etiket ${sinif}">${SINIF_AD[sinif]}</span></div>
       <button class="dugme yuvarlak" id="kart-kapat" aria-label="Kapat">✕</button></div>
@@ -300,6 +324,12 @@ function kartKapat() { kartEl.classList.remove("acik"); perdeEl.classList.remove
 /* ---------- olaylar ---------- */
 document.addEventListener("click", e => {
   const T = e.target;
+  const dn = T.closest("[data-dinle]");
+  if (dn) { const id = dn.dataset.dinle; const calan = dn.classList.contains("caliyor") && !oynatici.paused; sesDurdur(); if (!calan) sesCal(id); return; }
+  const sd = T.closest("#sayfa-dinle");
+  if (sd) { const acik = sd.getAttribute("aria-pressed") === "true"; sesDurdur(); if (!acik) { sd.setAttribute("aria-pressed", "true"); kuyruk = sd.dataset.kuyruk.split(","); sonrakiSes(); } return; }
+  const hz = T.closest("[data-hiz]");
+  if (hz) { durum.ayar.hiz = +hz.dataset.hiz; kaydet(); oynatici.playbackRate = durum.ayar.hiz; yonlendir(true); return; }
   const git = T.closest("[data-git]"); if (git) { location.hash = git.dataset.git; return; }
   const k = T.closest(".k[data-g]");
   if (k) { if (seciliK) seciliK.classList.remove("secili"); seciliK = k; k.classList.add("secili"); kartAc(k.dataset); return; }
@@ -365,6 +395,7 @@ document.addEventListener("input", e => { if (e.target.id === "yazi") { const n 
 /* ---------- yönlendirme ---------- */
 function yonlendir(yerinde) {
   const y = window.scrollY;
+  if (!yerinde) sesDurdur();
   kartKapat();
   const h = location.hash.replace(/^#/, "") || "/";
   let m;

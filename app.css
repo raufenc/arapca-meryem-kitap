@@ -265,3 +265,13 @@ textarea.yaz:focus{outline:none;border-color:var(--turkuaz)}
   .metin-kart{padding:14px 16px}
   .ust .marka small{display:none}
 }
+
+/* ses */
+.dinle{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:0;background:var(--turkuaz-acik);color:var(--turkuaz-koyu);cursor:pointer;vertical-align:.35em;margin-inline-end:10px;padding:0;flex:none;transition:background .15s,transform .12s}
+.dinle:hover{background:var(--turkuaz);color:#fff}
+.dinle.caliyor{background:var(--turkuaz);color:#fff;animation:nabiz2 1.2s ease-in-out infinite}
+@keyframes nabiz2{50%{transform:scale(1.12)}}
+.satir.caliyor{background:linear-gradient(90deg,transparent,var(--turkuaz-zemin) 12%,var(--turkuaz-zemin) 88%,transparent);border-radius:10px}
+.dinle-serit{display:flex;justify-content:flex-start;margin:0 0 6px}
+#sayfa-dinle[aria-pressed="true"]{background:var(--turkuaz);border-color:var(--turkuaz);color:#fff}
+.kelime-sor .dinle,.kk-soz .dinle,.soru-ar .dinle,.tahmin h2 .dinle{width:40px;height:40px;vertical-align:.25em}
